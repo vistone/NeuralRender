@@ -18,11 +18,20 @@ import {
   Terminal,
   Search,
   Activity,
-  ArrowRight
+  ArrowRight,
+  Download,
+  History,
+  Bookmark,
+  Star,
+  Trash2,
+  Columns,
+  BarChart3
 } from 'lucide-react';
 import { SCENARIOS } from './constants';
-import { WebPageScenario, AIAnalysis, RenderingTheme, WebPageType } from './types';
+import { WebPageScenario, AIAnalysis, RenderingTheme, WebPageType, PerformanceMetrics } from './types';
 import { GeminiService } from './services/geminiService';
+import { historyManager, bookmarkManager } from './utils/storage';
+import { useKeyboardShortcut } from './utils/hooks';
 
 const App: React.FC = () => {
   const [addressBar, setAddressBar] = useState(SCENARIOS[0].url);
@@ -35,6 +44,12 @@ const App: React.FC = () => {
   const [modernizedHtml, setModernizedHtml] = useState<string>('');
   const [virtualIdEnabled, setVirtualIdEnabled] = useState(true);
   const [logs, setLogs] = useState<string[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
+  const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   
   const logContainerRef = useRef<HTMLDivElement>(null);
   const gemini = useMemo(() => new GeminiService(), []);
@@ -43,17 +58,84 @@ const App: React.FC = () => {
     setLogs(prev => [...prev.slice(-25), `[${new Date().toLocaleTimeString()}] ${msg}`]);
   };
 
+  // Check if current URL is bookmarked
+  useEffect(() => {
+    setIsBookmarked(bookmarkManager.has(addressBar));
+  }, [addressBar]);
+
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
+  // Keyboard shortcuts
+  useKeyboardShortcut('r', () => handleNavigate(addressBar), { ctrl: true });
+  useKeyboardShortcut('e', () => setIsEnhanced(!isEnhanced), { ctrl: true });
+  useKeyboardShortcut('h', () => setShowHistory(!showHistory), { ctrl: true });
+  useKeyboardShortcut('b', () => toggleBookmark(), { ctrl: true });
+  useKeyboardShortcut('s', () => exportModernizedHtml(), { ctrl: true });
+  useKeyboardShortcut('?', () => setShowShortcuts(!showShortcuts), { shift: true });
+
+  const shortcuts = [
+    { keys: 'Ctrl+R', description: 'Reload current page' },
+    { keys: 'Ctrl+E', description: 'Toggle enhanced view' },
+    { keys: 'Ctrl+H', description: 'Toggle history panel' },
+    { keys: 'Ctrl+B', description: 'Toggle bookmark' },
+    { keys: 'Ctrl+S', description: 'Export modernized HTML' },
+    { keys: 'Shift+?', description: 'Show keyboard shortcuts' },
+  ];
+
+  const toggleBookmark = useCallback(() => {
+    if (isBookmarked) {
+      bookmarkManager.remove(addressBar);
+      addLog(`Bookmark removed: ${activeScenario.title}`);
+    } else {
+      bookmarkManager.add({
+        url: addressBar,
+        title: activeScenario.title
+      });
+      addLog(`Bookmark added: ${activeScenario.title}`);
+    }
+    setIsBookmarked(!isBookmarked);
+  }, [isBookmarked, addressBar, activeScenario.title]);
+
+  const exportModernizedHtml = useCallback(() => {
+    if (!modernizedHtml) {
+      addLog('No content to export');
+      return;
+    }
+    
+    const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${activeScenario.title} - Modernized by NeuralRender</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  ${modernizedHtml}
+</body>
+</html>`;
+    
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeScenario.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-modernized.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+    addLog(`Exported: ${a.download}`);
+  }, [modernizedHtml, activeScenario.title]);
+
   const handleNavigate = useCallback(async (inputUrl: string) => {
     setIsProcessing(true);
     setAnalysis(null);
     setModernizedHtml('');
     setLogs([]);
+    setMetrics(null);
+    setShowComparison(false);
     
     addLog(`Resolving endpoint: ${inputUrl}...`);
     
@@ -74,14 +156,25 @@ const App: React.FC = () => {
 
       // 2. Perform combined analysis and modernization for SPEED
       addLog(`Entering Neural Processing Layer (High-Speed Single-Pass)...`);
-      const { analysis: analysisData, html } = await gemini.modernize(targetScenario, theme);
+      const result = await gemini.modernize(targetScenario, theme);
       
-      setAnalysis(analysisData);
-      setModernizedHtml(html);
+      setAnalysis(result.analysis);
+      setModernizedHtml(result.html);
+      setMetrics(result.metrics || null);
       
       addLog(`Modernization complete.`);
-      addLog(`Intent: ${analysisData.intent}`);
-      addLog(`Threats neutralized: ${analysisData.threats.length}`);
+      addLog(`Intent: ${result.analysis.intent}`);
+      addLog(`Threats neutralized: ${result.analysis.threats.length}`);
+      if (result.analysis.accessibilityScore) {
+        addLog(`Accessibility Score: ${result.analysis.accessibilityScore}%`);
+      }
+
+      // Add to history
+      historyManager.add({
+        url: targetScenario.url,
+        title: targetScenario.title,
+        theme
+      });
     } catch (err) {
       addLog(`CRITICAL ERROR: ${err}`);
       console.error(err);
@@ -100,8 +193,10 @@ const App: React.FC = () => {
     addLog(`Re-rendering with ${newTheme} aesthetic parameters...`);
     setIsProcessing(true);
     try {
-      const { html } = await gemini.modernize(activeScenario, newTheme);
-      setModernizedHtml(html);
+      const result = await gemini.modernize(activeScenario, newTheme);
+      setModernizedHtml(result.html);
+      setAnalysis(result.analysis);
+      setMetrics(result.metrics || null);
       addLog(`Dynamic style rewrite successful.`);
     } catch (err) {
       addLog(`Re-render failed.`);
@@ -110,11 +205,22 @@ const App: React.FC = () => {
     }
   };
 
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
   const viewportWidth = {
     desktop: 'w-full',
     tablet: 'w-[768px]',
     mobile: 'w-[375px]'
   };
+
+  const historyItems = historyManager.getAll();
+  const bookmarks = bookmarkManager.getAll();
 
   return (
     <div className="flex h-screen w-full bg-[#020617] text-slate-200 overflow-hidden selection:bg-indigo-500/30 font-sans">
@@ -133,7 +239,97 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           <div>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-2">Navigation</h3>
+            <div className="flex items-center justify-between mb-3 px-2">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Navigation</h3>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className={`p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 transition-colors ${showHistory ? 'bg-indigo-500/10 text-indigo-400' : ''}`}
+                  title="History (Ctrl+H)"
+                >
+                  <History size={14} />
+                </button>
+                <button
+                  onClick={() => setShowBookmarks(!showBookmarks)}
+                  className={`p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 transition-colors ${showBookmarks ? 'bg-indigo-500/10 text-indigo-400' : ''}`}
+                  title="Bookmarks"
+                >
+                  <Star size={14} />
+                </button>
+              </div>
+            </div>
+
+            {showHistory && (
+              <div className="mb-3 bg-slate-800/30 rounded-xl p-3 border border-slate-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-slate-300">Recent History</span>
+                  <button
+                    onClick={() => {
+                      historyManager.clear();
+                      setShowHistory(false);
+                      addLog('History cleared');
+                    }}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {historyItems.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic">No history yet</p>
+                  ) : (
+                    historyItems.slice(0, 10).map((item, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          handleNavigate(item.url);
+                          setShowHistory(false);
+                        }}
+                        className="w-full text-left p-2 rounded-lg text-xs hover:bg-slate-700/50 text-slate-400 transition-all block truncate"
+                      >
+                        {item.title}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {showBookmarks && (
+              <div className="mb-3 bg-slate-800/30 rounded-xl p-3 border border-slate-700/50">
+                <span className="text-xs font-semibold text-slate-300 block mb-2">Bookmarks</span>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {bookmarks.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic">No bookmarks yet</p>
+                  ) : (
+                    bookmarks.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            handleNavigate(item.url);
+                            setShowBookmarks(false);
+                          }}
+                          className="flex-1 text-left p-2 rounded-lg text-xs hover:bg-slate-700/50 text-slate-400 transition-all truncate"
+                        >
+                          {item.title}
+                        </button>
+                        <button
+                          onClick={() => {
+                            bookmarkManager.remove(item.url);
+                            setShowBookmarks(false);
+                            addLog(`Removed bookmark: ${item.title}`);
+                          }}
+                          className="text-red-400 hover:text-red-300 p-1"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1">
               {SCENARIOS.map(s => (
                 <button
@@ -202,6 +398,33 @@ const App: React.FC = () => {
               className="bg-transparent border-none focus:ring-0 text-sm flex-1 outline-none text-slate-200 placeholder:text-slate-600"
               placeholder="Enter URL to modernize..."
             />
+            <button
+              onClick={() => toggleBookmark()}
+              className={`p-1.5 rounded-lg transition-colors ${isBookmarked ? 'text-yellow-400 hover:text-yellow-300' : 'text-slate-500 hover:text-slate-300'}`}
+              title={isBookmarked ? 'Remove Bookmark (Ctrl+B)' : 'Add Bookmark (Ctrl+B)'}
+            >
+              {isBookmarked ? <Star size={16} fill="currentColor" /> : <Star size={16} />}
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportModernizedHtml}
+              disabled={!modernizedHtml}
+              className="p-2 rounded-lg bg-slate-800/40 border border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Export HTML (Ctrl+S)"
+            >
+              <Download size={16} />
+            </button>
+            
+            <button
+              onClick={() => setShowComparison(!showComparison)}
+              disabled={!modernizedHtml}
+              className={`p-2 rounded-lg bg-slate-800/40 border border-slate-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed ${showComparison ? 'text-indigo-400 border-indigo-500/50' : 'text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}
+              title="Compare View"
+            >
+              <Columns size={16} />
+            </button>
           </div>
           
           <div className="flex items-center gap-1 bg-slate-800/40 p-1 rounded-xl border border-slate-700/50">
@@ -244,13 +467,34 @@ const App: React.FC = () => {
             </div>
           )}
           
-          <div className={`transition-all duration-700 ease-in-out shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] bg-white min-h-[600px] overflow-hidden rounded-2xl border border-white/5 ${viewportWidth[viewMode]}`}>
-            {isEnhanced ? (
-              <div className="h-full overflow-y-auto modernize-container" dangerouslySetInnerHTML={{ __html: modernizedHtml }} />
-            ) : (
-              <div className="h-full overflow-y-auto p-8 text-slate-800 bg-[#f8fafc]" dangerouslySetInnerHTML={{ __html: activeScenario.originalContent }} />
-            )}
-          </div>
+          {showComparison ? (
+            <div className="flex gap-6 w-full">
+              <div className="flex-1 min-w-0">
+                <div className="mb-3 text-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-800/50 px-3 py-1 rounded-full">Original</span>
+                </div>
+                <div className="shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] bg-white min-h-[600px] overflow-hidden rounded-2xl border border-white/5">
+                  <div className="h-full overflow-y-auto p-8 text-slate-800 bg-[#f8fafc]" dangerouslySetInnerHTML={{ __html: activeScenario.originalContent }} />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="mb-3 text-center">
+                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">Modernized</span>
+                </div>
+                <div className="shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] bg-white min-h-[600px] overflow-hidden rounded-2xl border border-white/5">
+                  <div className="h-full overflow-y-auto modernize-container" dangerouslySetInnerHTML={{ __html: modernizedHtml }} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className={`transition-all duration-700 ease-in-out shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] bg-white min-h-[600px] overflow-hidden rounded-2xl border border-white/5 ${viewportWidth[viewMode]}`}>
+              {isEnhanced ? (
+                <div className="h-full overflow-y-auto modernize-container" dangerouslySetInnerHTML={{ __html: modernizedHtml }} />
+              ) : (
+                <div className="h-full overflow-y-auto p-8 text-slate-800 bg-[#f8fafc]" dangerouslySetInnerHTML={{ __html: activeScenario.originalContent }} />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Mode Toggle Overlay */}
@@ -268,6 +512,51 @@ const App: React.FC = () => {
             <ShieldCheck size={14} /> NEURAL RENDER
           </button>
         </div>
+
+        {/* Help Button */}
+        <button
+          onClick={() => setShowShortcuts(true)}
+          className="absolute bottom-8 right-8 w-10 h-10 rounded-full bg-[#0f172a]/90 backdrop-blur-xl border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-indigo-400 hover:border-indigo-500/50 transition-all shadow-2xl"
+          title="Keyboard Shortcuts (Shift+?)"
+        >
+          <span className="text-lg font-bold">?</span>
+        </button>
+
+        {/* Keyboard Shortcuts Modal */}
+        {showShortcuts && (
+          <div 
+            className="absolute inset-0 z-50 bg-[#020617]/80 backdrop-blur-sm flex items-center justify-center p-8"
+            onClick={() => setShowShortcuts(false)}
+          >
+            <div 
+              className="bg-[#0f172a] border border-slate-700/50 rounded-2xl p-8 max-w-md w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                <div className="bg-indigo-500/10 p-2 rounded-xl">
+                  <Terminal size={20} className="text-indigo-400" />
+                </div>
+                Keyboard Shortcuts
+              </h3>
+              <div className="space-y-3">
+                {shortcuts.map((shortcut, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-800/30 border border-slate-700/50">
+                    <span className="text-sm text-slate-300">{shortcut.description}</span>
+                    <kbd className="px-3 py-1 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono text-slate-400">
+                      {shortcut.keys}
+                    </kbd>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowShortcuts(false)}
+                className="w-full mt-6 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 px-4 rounded-xl transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Analysis Panel */}
@@ -318,23 +607,74 @@ const App: React.FC = () => {
               <div className="pt-6 border-t border-slate-800/60">
                 <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-4">
                   <h4 className="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-tight">
-                    <Zap size={14} className="text-yellow-400" /> Metrics
+                    <BarChart3 size={14} className="text-yellow-400" /> Performance Metrics
                   </h4>
                   <div className="grid grid-cols-1 gap-3">
+                    {analysis.accessibilityScore !== undefined && (
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="text-slate-500">ACCESSIBILITY</span>
+                          <span className="text-emerald-400 font-bold">{analysis.accessibilityScore}%</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
+                            style={{ width: `${analysis.accessibilityScore}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {analysis.performanceGain !== undefined && (
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="text-slate-500">PERFORMANCE GAIN</span>
+                          <span className="text-indigo-400 font-bold">+{analysis.performanceGain}%</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 transition-all duration-500"
+                            style={{ width: `${analysis.performanceGain}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {analysis.sizeReduction !== undefined && (
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="text-slate-500">SIZE REDUCTION</span>
+                          <span className="text-cyan-400 font-bold">{analysis.sizeReduction}%</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-500"
+                            style={{ width: `${analysis.sizeReduction}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {metrics && (
+                      <div className="pt-3 border-t border-slate-700/50">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-slate-500">ORIGINAL SIZE</span>
+                          <span className="text-slate-400 font-mono">{formatBytes(metrics.originalSize)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] mt-1">
+                          <span className="text-slate-500">MODERNIZED SIZE</span>
+                          <span className="text-slate-400 font-mono">{formatBytes(metrics.modernizedSize)}</span>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-slate-500">LEGACY TECH</span>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 flex-wrap justify-end">
                         {activeScenario.originalTech.map((tech, i) => (
                           <span key={i} className="px-1.5 py-0.5 rounded bg-slate-900 text-[8px] text-slate-400 border border-slate-800">{tech}</span>
                         ))}
                       </div>
-                    </div>
-                    <div className="h-1 bg-slate-900 rounded-full overflow-hidden flex">
-                      <div className="w-[85%] bg-indigo-500 h-full"></div>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-slate-500">CLEANUP SCORE</span>
-                      <span className="text-indigo-400 font-bold">85%</span>
                     </div>
                   </div>
                 </div>

@@ -32,4 +32,22 @@ export interface AIAnalysis {
   }[];
   threats: string[];
   summary: string;
+  // Enhanced metrics
+  accessibilityScore?: number;
+  performanceGain?: number;
+  sizeReduction?: number;
+}
+
+export interface PerformanceMetrics {
+  originalSize: number;
+  modernizedSize: number;
+  loadTime: number;
+  threatsRemoved: number;
+}
+
+export interface KeyboardShortcut {
+  key: string;
+  description: string;
+  action: () => void;
+  modifiers?: string[];
 }
