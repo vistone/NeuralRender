@@ -1,27 +1,65 @@
-import { GoogleGenAI } from "@google/genai";
+/**
+ * DeepSeek AI Service Implementation
+ * Uses DeepSeek API for web modernization
+ */
+
 import { WebPageScenario, WebPageType } from "../types";
 import { AIService, AIServiceConfig, ModernizationResult } from "./aiService";
 
-export class GeminiService extends AIService {
-  private ai: GoogleGenAI;
+export class DeepSeekService extends AIService {
+  private apiEndpoint = 'https://api.deepseek.com/v1/chat/completions';
 
   constructor(config?: AIServiceConfig) {
-    const apiKey = config?.apiKey || process.env.API_KEY || '';
+    const apiKey = config?.apiKey || process.env.DEEPSEEK_API_KEY || '';
     super({
       apiKey,
       maxRetries: config?.maxRetries,
       retryDelay: config?.retryDelay
     });
-    this.ai = new GoogleGenAI({ apiKey: this.apiKey });
   }
 
   getProviderName(): string {
-    return 'Gemini';
+    return 'DeepSeek';
   }
 
   /**
-   * Performs analysis and content generation in a single pass to minimize latency.
-   * Now includes caching and enhanced metrics.
+   * Call DeepSeek API
+   */
+  private async callDeepSeekAPI(prompt: string): Promise<string> {
+    const response = await fetch(this.apiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert web developer and designer specializing in modern, accessible web design. Always respond with valid JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+        max_tokens: 4000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || '{}';
+  }
+
+  /**
+   * Performs analysis and content generation
    */
   async modernize(scenario: WebPageScenario, theme: string): Promise<ModernizationResult> {
     // Check cache first
@@ -34,17 +72,8 @@ export class GeminiService extends AIService {
     const prompt = this.generateModernizationPrompt(scenario, theme);
 
     const result = await this.withRetry(async () => {
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        }
-      });
-
-      // Using .text property directly as per guidelines
-      const text = response.text || '{}';
-      const data = JSON.parse(text);
+      const responseText = await this.callDeepSeekAPI(prompt);
+      const data = JSON.parse(responseText);
       
       // Calculate metrics using base class method
       const metrics = this.calculateMetrics(scenario, data.modernizedHtml || '', data.analysis.threats || []);
@@ -70,22 +99,15 @@ export class GeminiService extends AIService {
   }
 
   /**
-   * Generates a "raw" HTML simulation for arbitrary URLs to bypass CORS/fetching limitations in the sandbox.
-   * Now includes retry logic for better reliability.
+   * Generates a "raw" HTML simulation for arbitrary URLs
    */
   async simulateFetch(url: string): Promise<WebPageScenario> {
     const prompt = this.generateSimulationPrompt(url);
 
     try {
       const result = await this.withRetry(async () => {
-        const response = await this.ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: prompt,
-          config: { responseMimeType: "application/json" }
-        });
-        
-        // Using .text property directly as per guidelines
-        const data = JSON.parse(response.text || '{}');
+        const responseText = await this.callDeepSeekAPI(prompt);
+        const data = JSON.parse(responseText);
         
         // Map string to enum
         let type = WebPageType.LEGACY;

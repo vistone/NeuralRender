@@ -10,6 +10,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qbXppOQDeyU9Xe2_eAo_MT
 
 ## Features
 
+### 🤖 Multi-AI Provider Support
+- **Multiple AI Models**: Switch between Google Gemini, DeepSeek, and Kimi (Moonshot) AI
+- **Provider Selection**: Easy UI toggle to switch AI providers on the fly
+- **Unified Interface**: Consistent experience across all AI providers
+
 ### 🚀 Core Capabilities
 - **AI-Powered Modernization**: Transform legacy websites into modern, accessible web experiences
 - **Multiple Themes**: Choose from 5 rendering themes (Minimalist, Dark Mode, High Contrast, Retro 80s, Glassmorphism)
@@ -57,9 +62,12 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qbXppOQDeyU9Xe2_eAo_MT
    npm install
    ```
 
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key:
+2. Set your AI API keys in [.env.local](.env.local):
    ```
-   GEMINI_API_KEY=your_api_key_here
+   # Choose one or more AI providers
+   GEMINI_API_KEY=your_gemini_api_key_here
+   DEEPSEEK_API_KEY=your_deepseek_api_key_here
+   KIMI_API_KEY=your_kimi_api_key_here
    ```
 
 3. Run the app:
@@ -77,7 +85,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qbXppOQDeyU9Xe2_eAo_MT
 ### Tech Stack
 - **Frontend**: React 19 + TypeScript
 - **Styling**: Tailwind CSS
-- **AI Engine**: Google Gemini 3 Flash
+- **AI Engines**: Google Gemini 3 Flash / DeepSeek / Kimi (Moonshot)
 - **Build Tool**: Vite
 - **Icons**: Lucide React
 
@@ -87,8 +95,13 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qbXppOQDeyU9Xe2_eAo_MT
 ├── index.tsx              # Application entry point
 ├── constants.tsx          # Demo scenarios and configurations
 ├── types.ts               # TypeScript type definitions
+├── config.ts              # Configuration (AI provider settings)
 ├── services/
-│   └── geminiService.ts   # AI service with caching and retry logic
+│   ├── aiService.ts       # Abstract AI service base class
+│   ├── aiServiceFactory.ts # Factory for creating AI services
+│   ├── geminiService.ts   # Google Gemini implementation
+│   ├── deepseekService.ts # DeepSeek implementation
+│   └── kimiService.ts     # Kimi (Moonshot) implementation
 └── utils/
     ├── ErrorBoundary.tsx  # Error handling component
     ├── cache.ts           # Caching utility
@@ -98,11 +111,12 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qbXppOQDeyU9Xe2_eAo_MT
 
 ## How It Works
 
-1. **URL Input**: Enter any URL or select from demo scenarios
-2. **AI Analysis**: Gemini AI analyzes the page structure, content, and potential threats
-3. **Modernization**: AI generates clean, semantic HTML with Tailwind CSS styling
-4. **Rendering**: View the transformed page with selected theme and viewport
-5. **Export**: Download the modernized HTML for your own use
+1. **AI Provider Selection**: Choose between Gemini, DeepSeek, or Kimi AI
+2. **URL Input**: Enter any URL or select from demo scenarios
+3. **AI Analysis**: Selected AI analyzes the page structure, content, and potential threats
+4. **Modernization**: AI generates clean, semantic HTML with Tailwind CSS styling
+5. **Rendering**: View the transformed page with selected theme and viewport
+6. **Export**: Download the modernized HTML for your own use
 
 ## Contributing
 

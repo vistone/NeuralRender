@@ -4,7 +4,24 @@ All notable changes to NeuralRender will be documented in this file.
 
 ## [Unreleased] - 2026-01-08
 
-### Added
+### Added - Multi-AI Provider Support
+- **Multiple AI Providers**: Support for Google Gemini, DeepSeek, and Kimi (Moonshot) AI
+- **Provider Selection UI**: Easy toggle in sidebar to switch between AI providers
+- **Abstract AI Service**: Base class architecture for consistent behavior across providers
+- **Service Factory**: Factory pattern for creating appropriate AI service instances
+- **Provider-specific Implementations**:
+  - `GeminiService`: Google Gemini 3 Flash integration
+  - `DeepSeekService`: DeepSeek API integration with JSON response parsing
+  - `KimiService`: Kimi (Moonshot) API integration with markdown extraction
+- **Configuration**: AI provider settings in config.ts
+- **Environment Variables**: Support for multiple API keys (GEMINI_API_KEY, DEEPSEEK_API_KEY, KIMI_API_KEY)
+
+### Changed
+- **Architecture**: Refactored GeminiService to extend abstract AIService base class
+- **App Component**: Updated to use AIServiceFactory and support dynamic provider switching
+- **Documentation**: Updated README with multi-provider setup instructions
+
+### Previous Features (from earlier commits)
 - **Error Boundary**: Graceful error handling with recovery UI
 - **Smart Caching**: In-memory cache for API responses (10-minute TTL)
 - **Retry Logic**: Automatic retry for failed API calls (3 attempts)

@@ -25,13 +25,16 @@ import {
   Star,
   Trash2,
   Columns,
-  BarChart3
+  BarChart3,
+  Brain
 } from 'lucide-react';
 import { SCENARIOS } from './constants';
-import { WebPageScenario, AIAnalysis, RenderingTheme, WebPageType, PerformanceMetrics } from './types';
-import { GeminiService } from './services/geminiService';
+import { WebPageScenario, AIAnalysis, RenderingTheme, WebPageType, PerformanceMetrics, AIProvider } from './types';
+import { AIService } from './services/aiService';
+import { AIServiceFactory } from './services/aiServiceFactory';
 import { historyManager, bookmarkManager } from './utils/storage';
 import { useKeyboardShortcut } from './utils/hooks';
+import CONFIG from './config';
 
 const App: React.FC = () => {
   const [addressBar, setAddressBar] = useState(SCENARIOS[0].url);
@@ -50,10 +53,17 @@ const App: React.FC = () => {
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [aiProvider, setAiProvider] = useState<AIProvider>(
+    (CONFIG.ai.defaultProvider as AIProvider) || AIProvider.GEMINI
+  );
   
   const logContainerRef = useRef<HTMLDivElement>(null);
   const hasInitialLoaded = useRef(false);
-  const gemini = useMemo(() => new GeminiService(), []);
+  
+  // Create AI service based on selected provider
+  const aiService = useMemo(() => {
+    return AIServiceFactory.createService(aiProvider);
+  }, [aiProvider]);
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev.slice(-25), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -86,7 +96,7 @@ const App: React.FC = () => {
       
       if (!targetScenario) {
         addLog(`External URL detected. Initiating deep crawl simulation...`);
-        targetScenario = await gemini.simulateFetch(inputUrl);
+        targetScenario = await aiService.simulateFetch(inputUrl);
         addLog(`Source capture complete: "${targetScenario.title}"`);
       } else {
         addLog(`Scenario cache hit. Loading source...`);
@@ -97,7 +107,7 @@ const App: React.FC = () => {
 
       // 2. Perform combined analysis and modernization for SPEED
       addLog(`Entering Neural Processing Layer (High-Speed Single-Pass)...`);
-      const result = await gemini.modernize(targetScenario, theme);
+      const result = await aiService.modernize(targetScenario, theme);
       
       setAnalysis(result.analysis);
       setModernizedHtml(result.html);
@@ -123,7 +133,7 @@ const App: React.FC = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [gemini, theme]);
+  }, [aiService, theme]);
 
   const handleNavigate = useCallback(async (inputUrl: string) => {
     setIsProcessing(true);
@@ -141,7 +151,7 @@ const App: React.FC = () => {
       
       if (!targetScenario) {
         addLog(`External URL detected. Initiating deep crawl simulation...`);
-        targetScenario = await gemini.simulateFetch(inputUrl);
+        targetScenario = await aiService.simulateFetch(inputUrl);
         addLog(`Source capture complete: "${targetScenario.title}"`);
       } else {
         addLog(`Scenario cache hit. Loading source...`);
@@ -152,7 +162,7 @@ const App: React.FC = () => {
 
       // 2. Perform combined analysis and modernization for SPEED
       addLog(`Entering Neural Processing Layer (High-Speed Single-Pass)...`);
-      const result = await gemini.modernize(targetScenario, theme);
+      const result = await aiService.modernize(targetScenario, theme);
       
       setAnalysis(result.analysis);
       setModernizedHtml(result.html);
@@ -178,7 +188,7 @@ const App: React.FC = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [gemini, theme]);
+  }, [aiService, theme]);
 
   const toggleBookmark = useCallback(() => {
     if (isBookmarked) {
@@ -269,7 +279,7 @@ const App: React.FC = () => {
     addLog(`Re-rendering with ${newTheme} aesthetic parameters...`);
     setIsProcessing(true);
     try {
-      const result = await gemini.modernize(activeScenario, newTheme);
+      const result = await aiService.modernize(activeScenario, newTheme);
       setModernizedHtml(result.html);
       setAnalysis(result.analysis);
       setMetrics(result.metrics || null);
@@ -419,6 +429,36 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {CONFIG.ai.enableProviderSelection && (
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-2 flex items-center gap-2">
+                <Brain size={14} /> AI Provider
+              </h3>
+              <div className="space-y-2 px-2">
+                <div className="flex items-center justify-between text-xs mb-1 text-slate-400">
+                  <span>Current</span>
+                  <span className="text-indigo-400 font-mono">{AIServiceFactory.getProviderDisplayName(aiProvider)}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-1">
+                  {AIServiceFactory.getAvailableProviders().map(provider => (
+                    <button
+                      key={provider}
+                      onClick={() => {
+                        setAiProvider(provider);
+                        addLog(`Switched to ${AIServiceFactory.getProviderDisplayName(provider)}`);
+                      }}
+                      className={`text-left p-2 rounded-lg text-xs font-medium border transition-all ${aiProvider === provider ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/20' : 'bg-slate-800/30 border-slate-700/50 text-slate-400 hover:border-slate-600'}`}
+                      title={AIServiceFactory.getProviderDescription(provider)}
+                    >
+                      <div className="font-semibold">{AIServiceFactory.getProviderDisplayName(provider)}</div>
+                      <div className="text-[10px] opacity-70 mt-0.5">{AIServiceFactory.getProviderDescription(provider)}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div>
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 px-2">Rendering Engine</h3>

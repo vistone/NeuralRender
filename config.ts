@@ -4,6 +4,12 @@
  */
 
 export const CONFIG = {
+  // AI Provider settings
+  ai: {
+    defaultProvider: 'GEMINI', // GEMINI, DEEPSEEK, or KIMI
+    enableProviderSelection: true,
+  },
+
   // Cache settings
   cache: {
     enabled: true,

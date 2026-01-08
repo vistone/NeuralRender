@@ -15,6 +15,12 @@ export enum RenderingTheme {
   GLASSMORPHISM = 'GLASSMORPHISM'
 }
 
+export enum AIProvider {
+  GEMINI = 'GEMINI',
+  DEEPSEEK = 'DEEPSEEK',
+  KIMI = 'KIMI'
+}
+
 export interface WebPageScenario {
   url: string;
   type: WebPageType;
