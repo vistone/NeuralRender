@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState } from 'react';
 
 /**
  * Custom hook for handling keyboard shortcuts
+ * Requires exact modifier match - unspecified modifiers must be false
  */
 export function useKeyboardShortcut(
   key: string,
@@ -15,18 +16,20 @@ export function useKeyboardShortcut(
         return;
       }
 
-      // If no modifiers specified, match any modifier state
+      // If no modifiers specified, match only when no modifiers are pressed
       if (!modifiers) {
-        event.preventDefault();
-        callback();
+        if (!event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey) {
+          event.preventDefault();
+          callback();
+        }
         return;
       }
 
-      // Check exact modifier match
-      const ctrlMatch = modifiers.ctrl === undefined || event.ctrlKey === modifiers.ctrl;
-      const shiftMatch = modifiers.shift === undefined || event.shiftKey === modifiers.shift;
-      const altMatch = modifiers.alt === undefined || event.altKey === modifiers.alt;
-      const metaMatch = modifiers.meta === undefined || event.metaKey === modifiers.meta;
+      // Check exact modifier match - unspecified modifiers must be false
+      const ctrlMatch = modifiers.ctrl !== undefined ? event.ctrlKey === modifiers.ctrl : !event.ctrlKey;
+      const shiftMatch = modifiers.shift !== undefined ? event.shiftKey === modifiers.shift : !event.shiftKey;
+      const altMatch = modifiers.alt !== undefined ? event.altKey === modifiers.alt : !event.altKey;
+      const metaMatch = modifiers.meta !== undefined ? event.metaKey === modifiers.meta : !event.metaKey;
 
       if (ctrlMatch && shiftMatch && altMatch && metaMatch) {
         event.preventDefault();

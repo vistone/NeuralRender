@@ -107,8 +107,8 @@ export class GeminiService {
       const data = JSON.parse(text);
       
       // Calculate metrics
-      const originalSize = new Blob([scenario.originalContent]).size;
-      const modernizedSize = new Blob([data.modernizedHtml || '']).size;
+      const originalSize = new TextEncoder().encode(scenario.originalContent).length;
+      const modernizedSize = new TextEncoder().encode(data.modernizedHtml || '').length;
       
       const result: ModernizationResult = {
         analysis: {

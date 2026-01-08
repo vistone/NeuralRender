@@ -69,81 +69,60 @@ const App: React.FC = () => {
     }
   }, [logs]);
 
-  // Keyboard shortcuts - memoized to prevent unnecessary re-registrations
-  const handleReload = useCallback(() => {
-    handleNavigate(addressBar);
-  }, [addressBar, handleNavigate]);
-  
-  const toggleEnhanced = useCallback(() => {
-    setIsEnhanced(prev => !prev);
-  }, []);
-  
-  const toggleHistoryPanel = useCallback(() => {
-    setShowHistory(prev => !prev);
-  }, []);
-  
-  const toggleShortcutsModal = useCallback(() => {
-    setShowShortcuts(prev => !prev);
-  }, []);
+  const handleNavigate = useCallback(async (inputUrl: string) => {
+    setIsProcessing(true);
+    setAnalysis(null);
+    setModernizedHtml('');
+    setLogs([]);
+    setMetrics(null);
+    setShowComparison(false);
+    
+    addLog(`Resolving endpoint: ${inputUrl}...`);
+    
+    try {
+      // 1. Check if it's a known scenario or needs simulation
+      let targetScenario = SCENARIOS.find(s => s.url === inputUrl);
+      
+      if (!targetScenario) {
+        addLog(`External URL detected. Initiating deep crawl simulation...`);
+        targetScenario = await gemini.simulateFetch(inputUrl);
+        addLog(`Source capture complete: "${targetScenario.title}"`);
+      } else {
+        addLog(`Scenario cache hit. Loading source...`);
+      }
+      
+      setActiveScenario(targetScenario);
+      setAddressBar(targetScenario.url);
 
-  useKeyboardShortcut('r', handleReload, { ctrl: true });
-  useKeyboardShortcut('e', toggleEnhanced, { ctrl: true });
-  useKeyboardShortcut('h', toggleHistoryPanel, { ctrl: true });
-  useKeyboardShortcut('b', toggleBookmark, { ctrl: true });
-  useKeyboardShortcut('s', exportModernizedHtml, { ctrl: true });
-  useKeyboardShortcut('?', toggleShortcutsModal, { shift: true });
+      // 2. Perform combined analysis and modernization for SPEED
+      addLog(`Entering Neural Processing Layer (High-Speed Single-Pass)...`);
+      const result = await gemini.modernize(targetScenario, theme);
+      
+      setAnalysis(result.analysis);
+      setModernizedHtml(result.html);
+      setMetrics(result.metrics || null);
+      
+      addLog(`Modernization complete.`);
+      addLog(`Intent: ${result.analysis.intent}`);
+      addLog(`Threats neutralized: ${result.analysis.threats.length}`);
+      if (result.analysis.accessibilityScore) {
+        addLog(`Accessibility Score: ${result.analysis.accessibilityScore}%`);
+      }
 
-  const shortcuts = [
-    { keys: 'Ctrl+R', description: 'Reload current page' },
-    { keys: 'Ctrl+E', description: 'Toggle enhanced view' },
-    { keys: 'Ctrl+H', description: 'Toggle history panel' },
-    { keys: 'Ctrl+B', description: 'Toggle bookmark' },
-    { keys: 'Ctrl+S', description: 'Export modernized HTML' },
-    { keys: 'Shift+?', description: 'Show keyboard shortcuts' },
-  ];
-
-  const toggleBookmark = useCallback(() => {
-    if (isBookmarked) {
-      bookmarkManager.remove(addressBar);
-      addLog(`Bookmark removed: ${activeScenario.title}`);
-    } else {
-      bookmarkManager.add({
-        url: addressBar,
-        title: activeScenario.title
+      // Add to history
+      historyManager.add({
+        url: targetScenario.url,
+        title: targetScenario.title,
+        theme
       });
-      addLog(`Bookmark added: ${activeScenario.title}`);
+    } catch (err) {
+      addLog(`CRITICAL ERROR: ${err}`);
+      console.error(err);
+      setModernizedHtml('<div class="p-10 text-red-500 font-bold text-center">Analysis Timeout or Network Error. Please try again.</div>');
+    } finally {
+      setIsProcessing(false);
     }
-    setIsBookmarked(!isBookmarked);
-  }, [isBookmarked, addressBar, activeScenario.title]);
-
-  const exportModernizedHtml = useCallback(() => {
-    if (!modernizedHtml) {
-      addLog('No content to export');
-      return;
-    }
-    
-    const fullHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${activeScenario.title} - Modernized by NeuralRender</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body>
-  ${modernizedHtml}
-</body>
-</html>`;
-    
-    const blob = new Blob([fullHtml], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${activeScenario.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-modernized.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    addLog(`Exported: ${a.download}`);
-  }, [modernizedHtml, activeScenario.title]);
+  }, [gemini, theme]);
 
   const handleNavigate = useCallback(async (inputUrl: string) => {
     setIsProcessing(true);
@@ -199,6 +178,82 @@ const App: React.FC = () => {
       setIsProcessing(false);
     }
   }, [gemini, theme]);
+
+  const toggleBookmark = useCallback(() => {
+    if (isBookmarked) {
+      bookmarkManager.remove(addressBar);
+      addLog(`Bookmark removed: ${activeScenario.title}`);
+    } else {
+      bookmarkManager.add({
+        url: addressBar,
+        title: activeScenario.title
+      });
+      addLog(`Bookmark added: ${activeScenario.title}`);
+    }
+    setIsBookmarked(!isBookmarked);
+  }, [isBookmarked, addressBar, activeScenario.title]);
+
+  const exportModernizedHtml = useCallback(() => {
+    if (!modernizedHtml) {
+      addLog('No content to export');
+      return;
+    }
+    
+    const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${activeScenario.title} - Modernized by NeuralRender</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  ${modernizedHtml}
+</body>
+</html>`;
+    
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeScenario.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-modernized.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+    addLog(`Exported: ${a.download}`);
+  }, [modernizedHtml, activeScenario.title]);
+
+  // Keyboard shortcuts - memoized callbacks to prevent re-registrations
+  const handleReload = useCallback(() => {
+    handleNavigate(addressBar);
+  }, [addressBar, handleNavigate]);
+  
+  const toggleEnhanced = useCallback(() => {
+    setIsEnhanced(prev => !prev);
+  }, []);
+  
+  const toggleHistoryPanel = useCallback(() => {
+    setShowHistory(prev => !prev);
+  }, []);
+  
+  const toggleShortcutsModal = useCallback(() => {
+    setShowShortcuts(prev => !prev);
+  }, []);
+
+  useKeyboardShortcut('r', handleReload, { ctrl: true });
+  useKeyboardShortcut('e', toggleEnhanced, { ctrl: true });
+  useKeyboardShortcut('h', toggleHistoryPanel, { ctrl: true });
+  useKeyboardShortcut('b', toggleBookmark, { ctrl: true });
+  useKeyboardShortcut('s', exportModernizedHtml, { ctrl: true });
+  useKeyboardShortcut('?', toggleShortcutsModal, { shift: true });
+
+  const shortcuts = [
+    { keys: 'Ctrl+R', description: 'Reload current page' },
+    { keys: 'Ctrl+E', description: 'Toggle enhanced view' },
+    { keys: 'Ctrl+H', description: 'Toggle history panel' },
+    { keys: 'Ctrl+B', description: 'Toggle bookmark' },
+    { keys: 'Ctrl+S', description: 'Export modernized HTML' },
+    { keys: 'Shift+?', description: 'Show keyboard shortcuts' },
+  ];
 
   useEffect(() => {
     handleNavigate(SCENARIOS[0].url);
