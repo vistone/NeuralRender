@@ -49,6 +49,7 @@ const App: React.FC = () => {
   });
   
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const initialLoadRef = useRef(false);
   const gemini = useMemo(() => new GeminiService(), []);
 
   const addLog = (msg: string) => {
@@ -107,7 +108,10 @@ const App: React.FC = () => {
   }, [gemini, theme, privacy]);
 
   useEffect(() => {
-    handleNavigate(SCENARIOS[0].url);
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      handleNavigate(SCENARIOS[0].url);
+    }
   }, [handleNavigate]);
 
   const viewportWidth = {
