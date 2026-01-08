@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { AIAnalysis, WebPageScenario, WebPageType } from "../types";
+import { AIAnalysis, WebPageScenario, WebPageType, PrivacySettings } from "../types";
 
 export interface ModernizationResult {
   analysis: AIAnalysis;
@@ -11,118 +11,90 @@ export class GeminiService {
   private ai: GoogleGenAI;
 
   constructor() {
-    // Correct initialization with named parameter as per guidelines
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
-  /**
-   * Performs analysis and content generation in a single pass to minimize latency.
-   */
-  async modernize(scenario: WebPageScenario, theme: string): Promise<ModernizationResult> {
+  async modernize(
+    scenario: WebPageScenario, 
+    theme: string, 
+    privacy: PrivacySettings
+  ): Promise<ModernizationResult> {
     const prompt = `
-      You are an advanced AI Web Rendering Proxy called "NeuralRender". 
-      Target URL: ${scenario.url}
-      Target Theme: ${theme}
+      Act as "NeuralRender", a world-class AI Proxy that sits between users and legacy websites.
+      URL: ${scenario.url}
+      Theme: ${theme}
+      Privacy Shielding: ${JSON.stringify(privacy)}
       
-      Raw Content Provided (Simulated Fetch):
+      RAW SOURCE:
       ${scenario.originalContent}
       
-      TASK:
-      1. Analyze the page: core intent, semantic structure tree, and potential threats (ads, trackers, phishing).
-      2. RE-IMAGINE the content as a modern, accessible, and high-quality web page.
+      CORE TASK:
+      1. ANALYZE: Identify the core business logic, user intent, and site category.
+      2. SCAN: Detect intrusive scripts, trackers, and annoying ads.
+      3. RECONSTRUCT: Generate a high-performance, modern React-like HTML structure using Tailwind CSS.
       
-      RULES for HTML Generation:
-      - Use semantic HTML5.
-      - Use Tailwind CSS classes for ALL styling.
-      - DO NOT include <script>, <iframe>, or external tracking tags.
-      - Strip all original inline styles.
-      - For the "${theme}" theme, apply consistent and striking visual styles.
-      - If the theme is "RETRO_80S", use glowing neon colors and mono fonts.
-      - If "GLASSMORPHISM", use semi-transparent backgrounds and blurs.
-      - If "MINIMALIST", use lots of white space and elegant typography.
-      
-      Return your response in JSON format matching this structure:
+      PRIVACY DIRECTIVES:
+      ${privacy.adShield ? "- REMOVE all ads and marketing noise. Replace them with useful white space or context-aware placeholders." : ""}
+      ${privacy.trackerDeception ? "- IDENTIFY all forms and replace 'Personal Info' requirements with simulated/virtual data concepts in the UI." : ""}
+      ${privacy.scriptSandbox ? "- Strip all <script> and <iframe> tags. All interactions must be modern UI-driven." : ""}
+
+      VISUAL DIRECTIVES for "${theme}":
+      - CYBERPUNK: High contrast black/pink/cyan, glitches, monospace accents.
+      - GLASSMORPHISM: Frosted glass effect (bg-white/10 backdrop-blur-md), soft shadows, organic shapes.
+      - MINIMALIST: Radical simplicity, extreme white space, serif/sans-serif pairing.
+      - DARK_MODE: Deep slates, subtle gradients, focus on readability.
+
+      Return ONLY a JSON object:
       {
         "analysis": {
-          "intent": "string",
-          "summary": "string",
-          "structure": [{"role": "string", "selector": "string", "actionable": "boolean"}],
-          "threats": ["string"]
+          "intent": "Brief description of why the user is here",
+          "category": "NEWS" | "ECOMMERCE" | "FORUM" | "DOCS" | "LEGACY",
+          "summary": "1-sentence executive summary",
+          "structure": [{"role": "header", "selector": "nav", "actionable": true}],
+          "threats": ["List specific trackers/ads neutralized"],
+          "detectedAds": number,
+          "privacyScore": number (0-100)
         },
-        "modernizedHtml": "The full HTML string for the body content"
+        "modernizedHtml": "Complete HTML string for a div container. Use Tailwind only."
       }
     `;
 
-    try {
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        }
-      });
+    const response = await this.ai.models.generateContent({
+      model: 'gemini-3-pro-preview', // Upgrading to pro for better structural reasoning
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      }
+    });
 
-      // Using .text property directly as per guidelines
-      const text = response.text || '{}';
-      const data = JSON.parse(text);
-      return {
-        analysis: data.analysis,
-        html: data.modernizedHtml
-      };
-    } catch (error) {
-      console.error("Modernization failed", error);
-      throw error;
-    }
+    const data = JSON.parse(response.text || '{}');
+    return {
+      analysis: data.analysis,
+      html: data.modernizedHtml
+    };
   }
 
-  /**
-   * Generates a "raw" HTML simulation for arbitrary URLs to bypass CORS/fetching limitations in the sandbox.
-   */
   async simulateFetch(url: string): Promise<WebPageScenario> {
     const prompt = `
-      The user wants to visit this URL: ${url}
-      Since we are in a simulation environment, generate a representative "raw, legacy, or cluttered" HTML document that might belong to this domain.
-      
-      Include:
-      - A realistic title.
-      - Messy structure (tables, old divs, inline styles).
-      - Placeholder content relevant to the domain name.
-      - Some simulated ads or tracker descriptions.
-      
-      Return JSON: {"title": "string", "originalContent": "string", "tech": ["string"], "type": "NEWS" | "ECOMMERCE" | "FORUM" | "DOCS" | "LEGACY"}
+      Generate a raw, legacy HTML dump for the URL: ${url}
+      Make it messy (tables, spacer gifs, 90s styles, popups).
+      Include tech details like "Classic ASP", "FrontPage Extensions".
+      Return JSON: {"title": "string", "originalContent": "string", "tech": ["string"], "type": "string"}
     `;
 
-    try {
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-      // Using .text property directly as per guidelines
-      const data = JSON.parse(response.text || '{}');
-      
-      // Map string to enum
-      let type = WebPageType.LEGACY;
-      if (data.type === 'NEWS') type = WebPageType.NEWS;
-      else if (data.type === 'ECOMMERCE') type = WebPageType.ECOMMERCE;
-      else if (data.type === 'FORUM') type = WebPageType.FORUM;
-      else if (data.type === 'DOCS') type = WebPageType.DOCS;
-
-      return {
-        url,
-        type,
-        title: data.title || "External Site",
-        originalContent: data.originalContent || "<div>Connection failed.</div>",
-        originalTech: data.tech || ["Simulated"]
-      };
-    } catch (e) {
-      return {
-        url,
-        type: WebPageType.LEGACY,
-        title: "Simulation Error",
-        originalContent: `<div style="padding: 20px; color: red;">Proxy Error: Unable to resolve ${url}</div>`,
-        originalTech: ["None"]
-      };
-    }
+    const response = await this.ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    });
+    const data = JSON.parse(response.text || '{}');
+    
+    return {
+      url,
+      type: (data.type as WebPageType) || WebPageType.LEGACY,
+      title: data.title || url,
+      originalContent: data.originalContent,
+      originalTech: data.tech || []
+    };
   }
 }

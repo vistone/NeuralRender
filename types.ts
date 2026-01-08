@@ -12,7 +12,15 @@ export enum RenderingTheme {
   DARK_MODE = 'DARK_MODE',
   HIGH_CONTRAST = 'HIGH_CONTRAST',
   RETRO_80S = 'RETRO_80S',
-  GLASSMORPHISM = 'GLASSMORPHISM'
+  GLASSMORPHISM = 'GLASSMORPHISM',
+  CYBERPUNK = 'CYBERPUNK'
+}
+
+export interface PrivacySettings {
+  adShield: boolean;
+  virtualIdentity: boolean;
+  scriptSandbox: boolean;
+  trackerDeception: boolean;
 }
 
 export interface WebPageScenario {
@@ -25,6 +33,7 @@ export interface WebPageScenario {
 
 export interface AIAnalysis {
   intent: string;
+  category: WebPageType;
   structure: {
     role: string;
     selector: string;
@@ -32,4 +41,6 @@ export interface AIAnalysis {
   }[];
   threats: string[];
   summary: string;
+  detectedAds: number;
+  privacyScore: number;
 }
