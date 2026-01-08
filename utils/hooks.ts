@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 
 /**
  * Custom hook for handling keyboard shortcuts
@@ -9,8 +9,15 @@ export function useKeyboardShortcut(
   callback: () => void,
   modifiers?: { ctrl?: boolean; shift?: boolean; alt?: boolean; meta?: boolean }
 ) {
-  const handleKeyPress = useCallback(
-    (event: KeyboardEvent) => {
+  // Use ref to always have the latest callback without causing re-registration
+  const callbackRef = useRef(callback);
+  
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
+
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
       // Check if the key matches
       if (event.key.toLowerCase() !== key.toLowerCase()) {
         return;
@@ -20,7 +27,7 @@ export function useKeyboardShortcut(
       if (!modifiers) {
         if (!event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey) {
           event.preventDefault();
-          callback();
+          callbackRef.current();
         }
         return;
       }
@@ -33,16 +40,13 @@ export function useKeyboardShortcut(
 
       if (ctrlMatch && shiftMatch && altMatch && metaMatch) {
         event.preventDefault();
-        callback();
+        callbackRef.current();
       }
-    },
-    [key, callback, modifiers]
-  );
+    };
 
-  useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [handleKeyPress]);
+  }, [key, modifiers]); // callback not in dependencies - we use ref instead
 }
 
 /**
