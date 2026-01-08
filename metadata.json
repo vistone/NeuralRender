@@ -1,0 +1,8 @@
+{
+  "name": "NeuralRender AI Proxy",
+  "description": "An intelligent web rewriting proxy that re-interprets, restructures, and modernizes websites in real-time using AI for a personalized browsing experience.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
