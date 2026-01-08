@@ -8,6 +8,15 @@ import { fileURLToPath } from 'url';
 // Load environment variables
 dotenv.config({ path: '.env.local' });
 
+// API response interfaces
+interface AIProviderResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+}
+
 const app = express();
 const PORT = process.env.SERVER_PORT || 3001;
 
@@ -20,8 +29,10 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Serve static files from the dist directory in production
+const clientDistPath = process.env.CLIENT_DIST_PATH || path.join(__dirname, '..');
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../')));
+  app.use(express.static(clientDistPath));
+  console.log(`📦 Serving static files from: ${clientDistPath}`);
 }
 
 // Initialize AI clients
@@ -54,8 +65,13 @@ app.post('/api/ai/gemini', async (req: Request, res: Response) => {
 
     const { prompt, model = 'gemini-3-flash-preview' } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+    // Input validation
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'Prompt is required and must be a string' });
+    }
+
+    if (prompt.length > 50000) {
+      return res.status(400).json({ error: 'Prompt too long (max 50,000 characters)' });
     }
 
     const response = await geminiClient.models.generateContent({
@@ -86,8 +102,13 @@ app.post('/api/ai/deepseek', async (req: Request, res: Response) => {
 
     const { prompt, model = 'deepseek-chat' } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+    // Input validation
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'Prompt is required and must be a string' });
+    }
+
+    if (prompt.length > 50000) {
+      return res.status(400).json({ error: 'Prompt too long (max 50,000 characters)' });
     }
 
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -119,8 +140,8 @@ app.post('/api/ai/deepseek', async (req: Request, res: Response) => {
       throw new Error(`DeepSeek API error: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json();
-    const content = (data as any).choices[0]?.message?.content || '{}';
+    const data = await response.json() as AIProviderResponse;
+    const content = data.choices[0]?.message?.content || '{}';
     res.json({ response: content });
   } catch (error: any) {
     console.error('DeepSeek API error:', error);
@@ -140,8 +161,13 @@ app.post('/api/ai/kimi', async (req: Request, res: Response) => {
 
     const { prompt, model = 'moonshot-v1-8k' } = req.body;
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+    // Input validation
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'Prompt is required and must be a string' });
+    }
+
+    if (prompt.length > 50000) {
+      return res.status(400).json({ error: 'Prompt too long (max 50,000 characters)' });
     }
 
     const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
@@ -172,8 +198,8 @@ app.post('/api/ai/kimi', async (req: Request, res: Response) => {
       throw new Error(`Kimi API error: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json();
-    const content = (data as any).choices[0]?.message?.content || '{}';
+    const data = await response.json() as AIProviderResponse;
+    const content = data.choices[0]?.message?.content || '{}';
     
     // Kimi might wrap JSON in markdown code blocks, extract it
     const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
@@ -189,7 +215,7 @@ app.post('/api/ai/kimi', async (req: Request, res: Response) => {
 // In production, serve the React app for all other routes
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req: Request, res: Response) => {
-    res.sendFile(path.join(__dirname, '../index.html'));
+    res.sendFile(path.join(clientDistPath, 'index.html'));
   });
 }
 

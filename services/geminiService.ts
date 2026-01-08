@@ -19,7 +19,7 @@ export class GeminiService extends AIService {
     this.useServer = import.meta.env.VITE_USE_SERVER !== 'false';
     this.serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
     
-    // Only initialize Google AI client if not using server
+    // Only initialize Google AI client if not using server and we have an API key
     if (!this.useServer && this.apiKey) {
       this.ai = new GoogleGenAI({ apiKey: this.apiKey });
     }
@@ -53,7 +53,7 @@ export class GeminiService extends AIService {
     } else {
       // Direct client-side call (legacy)
       if (!this.ai) {
-        throw new Error('Gemini API key not configured');
+        throw new Error('Gemini API key not configured. Please set GEMINI_API_KEY or enable server mode.');
       }
 
       const response = await this.ai.models.generateContent({
