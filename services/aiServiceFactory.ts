@@ -3,7 +3,8 @@
  * Creates appropriate AI service based on provider selection
  */
 
-import { AIService, AIServiceConfig, AIProvider } from "./aiService";
+import { AIProvider } from "../types";
+import { AIService, AIServiceConfig } from "./aiService";
 import { GeminiService } from "./geminiService";
 import { DeepSeekService } from "./deepseekService";
 import { KimiService } from "./kimiService";

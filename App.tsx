@@ -34,7 +34,7 @@ import { AIService } from './services/aiService';
 import { AIServiceFactory } from './services/aiServiceFactory';
 import { historyManager, bookmarkManager } from './utils/storage';
 import { useKeyboardShortcut } from './utils/hooks';
-import CONFIG from './config';
+import { CONFIG } from './config';
 
 const App: React.FC = () => {
   const [addressBar, setAddressBar] = useState(SCENARIOS[0].url);
