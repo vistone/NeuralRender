@@ -4,7 +4,25 @@ All notable changes to NeuralRender will be documented in this file.
 
 ## [Unreleased] - 2026-01-08
 
-### Added - Multi-AI Provider Support
+### Added - Server-Side Architecture
+- **Express Server**: Added backend server for secure API key management
+- **API Proxy Endpoints**: Server-side endpoints for Gemini, DeepSeek, and Kimi AI
+- **Security Enhancement**: API keys now stored server-side, not exposed in client bundle
+- **Server Scripts**: New npm scripts for server development and production
+- **Health Check Endpoint**: `/api/health` for server status monitoring
+- **Dual Mode Support**: 
+  - Server mode (recommended): API calls proxied through backend
+  - Client mode (legacy): Direct API calls from browser
+- **Environment Configuration**: `VITE_USE_SERVER` and `VITE_SERVER_URL` options
+- **Concurrent Development**: Server and client run together in dev mode
+
+### Changed
+- **AI Services**: Updated to support both server-side and client-side API calls
+- **Build Process**: Now builds both client and server
+- **Development Workflow**: `npm run dev` starts both server and client
+- **Dependencies**: Added Express, CORS, dotenv, concurrently, tsx
+
+### Added - Multi-AI Provider Support (from earlier commits)
 - **Multiple AI Providers**: Support for Google Gemini, DeepSeek, and Kimi (Moonshot) AI
 - **Provider Selection UI**: Easy toggle in sidebar to switch between AI providers
 - **Abstract AI Service**: Base class architecture for consistent behavior across providers

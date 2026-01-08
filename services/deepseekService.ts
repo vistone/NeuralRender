@@ -8,6 +8,8 @@ import { AIService, AIServiceConfig, ModernizationResult } from "./aiService";
 
 export class DeepSeekService extends AIService {
   private apiEndpoint = 'https://api.deepseek.com/v1/chat/completions';
+  private useServer: boolean;
+  private serverUrl: string;
 
   constructor(config?: AIServiceConfig) {
     const apiKey = config?.apiKey || process.env.DEEPSEEK_API_KEY || '';
@@ -16,6 +18,10 @@ export class DeepSeekService extends AIService {
       maxRetries: config?.maxRetries,
       retryDelay: config?.retryDelay
     });
+    
+    // Use server-side API if available
+    this.useServer = import.meta.env.VITE_USE_SERVER !== 'false';
+    this.serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
   }
 
   getProviderName(): string {
@@ -23,39 +29,59 @@ export class DeepSeekService extends AIService {
   }
 
   /**
-   * Call DeepSeek API
+   * Call DeepSeek API via server or directly
    */
   private async callDeepSeekAPI(prompt: string): Promise<string> {
-    const response = await fetch(this.apiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert web developer and designer specializing in modern, accessible web design. Always respond with valid JSON.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.7,
-        max_tokens: 4000
-      })
-    });
+    if (this.useServer) {
+      // Call server endpoint
+      const response = await fetch(`${this.serverUrl}/api/ai/deepseek`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt })
+      });
 
-    if (!response.ok) {
-      throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.response;
+    } else {
+      // Direct client-side call (legacy)
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert web developer and designer specializing in modern, accessible web design. Always respond with valid JSON.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.7,
+          max_tokens: 4000
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0]?.message?.content || '{}';
     }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || '{}';
   }
 
   /**

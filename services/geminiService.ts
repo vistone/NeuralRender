@@ -3,7 +3,9 @@ import { WebPageScenario, WebPageType } from "../types";
 import { AIService, AIServiceConfig, ModernizationResult } from "./aiService";
 
 export class GeminiService extends AIService {
-  private ai: GoogleGenAI;
+  private ai: GoogleGenAI | null = null;
+  private useServer: boolean;
+  private serverUrl: string;
 
   constructor(config?: AIServiceConfig) {
     const apiKey = config?.apiKey || process.env.API_KEY || '';
@@ -12,11 +14,58 @@ export class GeminiService extends AIService {
       maxRetries: config?.maxRetries,
       retryDelay: config?.retryDelay
     });
-    this.ai = new GoogleGenAI({ apiKey: this.apiKey });
+    
+    // Use server-side API if available, otherwise direct client-side (for backward compatibility)
+    this.useServer = import.meta.env.VITE_USE_SERVER !== 'false';
+    this.serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+    
+    // Only initialize Google AI client if not using server
+    if (!this.useServer && this.apiKey) {
+      this.ai = new GoogleGenAI({ apiKey: this.apiKey });
+    }
   }
 
   getProviderName(): string {
     return 'Gemini';
+  }
+
+  /**
+   * Call Gemini API via server or directly
+   */
+  private async callGeminiAPI(prompt: string): Promise<string> {
+    if (this.useServer) {
+      // Call server endpoint
+      const response = await fetch(`${this.serverUrl}/api/ai/gemini`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.response;
+    } else {
+      // Direct client-side call (legacy)
+      if (!this.ai) {
+        throw new Error('Gemini API key not configured');
+      }
+
+      const response = await this.ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        }
+      });
+
+      return response.text || '{}';
+    }
   }
 
   /**
@@ -34,16 +83,7 @@ export class GeminiService extends AIService {
     const prompt = this.generateModernizationPrompt(scenario, theme);
 
     const result = await this.withRetry(async () => {
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        }
-      });
-
-      // Using .text property directly as per guidelines
-      const text = response.text || '{}';
+      const text = await this.callGeminiAPI(prompt);
       const data = JSON.parse(text);
       
       // Calculate metrics using base class method
@@ -78,14 +118,8 @@ export class GeminiService extends AIService {
 
     try {
       const result = await this.withRetry(async () => {
-        const response = await this.ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: prompt,
-          config: { responseMimeType: "application/json" }
-        });
-        
-        // Using .text property directly as per guidelines
-        const data = JSON.parse(response.text || '{}');
+        const text = await this.callGeminiAPI(prompt);
+        const data = JSON.parse(text);
         
         // Map string to enum
         let type = WebPageType.LEGACY;

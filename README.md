@@ -55,7 +55,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qbXppOQDeyU9Xe2_eAo_MT
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:**  Node.js (v18+)
+
+### With Server (Recommended for Security)
+
+The server-side mode keeps your API keys secure and prevents exposure in the client bundle.
 
 1. Install dependencies:
    ```bash
@@ -63,31 +67,64 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qbXppOQDeyU9Xe2_eAo_MT
    ```
 
 2. Set your AI API keys in [.env.local](.env.local):
-   ```
+   ```bash
    # Choose one or more AI providers
    GEMINI_API_KEY=your_gemini_api_key_here
    DEEPSEEK_API_KEY=your_deepseek_api_key_here
    KIMI_API_KEY=your_kimi_api_key_here
+   
+   # Server configuration (optional)
+   SERVER_PORT=3001
+   VITE_USE_SERVER=true
+   VITE_SERVER_URL=http://localhost:3001
    ```
 
-3. Run the app:
+3. Run the app (starts both server and client):
    ```bash
    npm run dev
    ```
+   
+   This will start:
+   - Backend server on `http://localhost:3001`
+   - Frontend client on `http://localhost:3000`
 
 4. Build for production:
    ```bash
    npm run build
+   npm start
    ```
+
+### Client-Only Mode (Legacy)
+
+For backward compatibility, you can run in client-only mode (API keys will be exposed in the bundle):
+
+1. Set `VITE_USE_SERVER=false` in `.env.local`
+2. Run `npm run client`
 
 ## Architecture
 
 ### Tech Stack
 - **Frontend**: React 19 + TypeScript
+- **Backend**: Express.js (Node.js)
 - **Styling**: Tailwind CSS
 - **AI Engines**: Google Gemini 3 Flash / DeepSeek / Kimi (Moonshot)
 - **Build Tool**: Vite
 - **Icons**: Lucide React
+
+### Server Architecture
+
+The application now includes a **server-side component** that:
+- Securely stores and manages API keys
+- Proxies requests to AI providers
+- Prevents API key exposure in client bundles
+- Handles rate limiting and error management
+- Provides a RESTful API for the frontend
+
+**API Endpoints:**
+- `GET /api/health` - Server health check
+- `POST /api/ai/gemini` - Gemini AI requests
+- `POST /api/ai/deepseek` - DeepSeek AI requests
+- `POST /api/ai/kimi` - Kimi AI requests
 
 ### Project Structure
 ```
@@ -96,6 +133,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qbXppOQDeyU9Xe2_eAo_MT
 ├── constants.tsx          # Demo scenarios and configurations
 ├── types.ts               # TypeScript type definitions
 ├── config.ts              # Configuration (AI provider settings)
+├── server/
+│   └── index.ts           # Express server with AI API proxying
 ├── services/
 │   ├── aiService.ts       # Abstract AI service base class
 │   ├── aiServiceFactory.ts # Factory for creating AI services
