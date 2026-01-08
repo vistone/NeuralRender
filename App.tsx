@@ -28,7 +28,7 @@ import {
   Key
 } from 'lucide-react';
 import { SCENARIOS } from './constants';
-import { WebPageScenario, AIAnalysis, RenderingTheme, WebPageType, PrivacySettings } from './types';
+import { WebPageScenario, AIAnalysis, RenderingTheme, PrivacySettings } from './types';
 import { GeminiService } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -108,7 +108,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     handleNavigate(SCENARIOS[0].url);
-  }, []);
+  }, [handleNavigate]);
 
   const viewportWidth = {
     desktop: 'w-full max-w-7xl',

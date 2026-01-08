@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 /**
  * Custom hook for handling keyboard shortcuts
