@@ -3,7 +3,7 @@
  * Defines common interface for all AI providers (Gemini, DeepSeek, Kimi)
  */
 
-import { AIAnalysis, WebPageScenario, PerformanceMetrics, AIProvider } from "../types";
+import { AIAnalysis, WebPageScenario, PerformanceMetrics } from "../types";
 import { Cache } from "../utils/cache";
 
 export interface ModernizationResult {
