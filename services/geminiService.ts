@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { WebPageScenario, WebPageType } from "../types";
+import { WebPageScenario, WebPageType, PrivacySettings } from "../types";
 import { AIService, AIServiceConfig, ModernizationResult } from "./aiService";
 
 export class GeminiService extends AIService {
@@ -69,18 +69,74 @@ export class GeminiService extends AIService {
   }
 
   /**
-   * Performs analysis and content generation in a single pass to minimize latency.
-   * Now includes caching and enhanced metrics.
+   * Generate modernization prompt with privacy settings
    */
-  async modernize(scenario: WebPageScenario, theme: string): Promise<ModernizationResult> {
+  protected generateModernizationPrompt(scenario: WebPageScenario, theme: string, privacy?: PrivacySettings): string {
+    const privacyDirectives = privacy ? `
+      PRIVACY DIRECTIVES:
+      ${privacy.adShield ? "- REMOVE all ads and marketing noise. Replace them with useful white space or context-aware placeholders." : ""}
+      ${privacy.trackerDeception ? "- IDENTIFY all forms and replace 'Personal Info' requirements with simulated/virtual data concepts in the UI." : ""}
+      ${privacy.scriptSandbox ? "- Strip all <script> and <iframe> tags. All interactions must be modern UI-driven." : ""}
+    ` : '';
+
+    return `
+      Act as "NeuralRender", a world-class AI Proxy that sits between users and legacy websites.
+      URL: ${scenario.url}
+      Theme: ${theme}
+      ${privacy ? `Privacy Shielding: ${JSON.stringify(privacy)}` : ''}
+      
+      RAW SOURCE:
+      ${scenario.originalContent}
+      
+      CORE TASK:
+      1. ANALYZE: Identify the core business logic, user intent, and site category.
+      2. SCAN: Detect intrusive scripts, trackers, and annoying ads. ${privacy ? 'Apply privacy shielding as specified.' : ''}
+      3. RECONSTRUCT: Generate a high-performance, modern React-like HTML structure using Tailwind CSS.
+      4. ENHANCE: Improve accessibility (WCAG 2.1 AA compliance), remove security threats, optimize performance.
+      
+      ${privacyDirectives}
+
+      VISUAL DIRECTIVES for "${theme}":
+      - CYBERPUNK: High contrast black/pink/cyan, glitches, monospace accents, neon effects.
+      - GLASSMORPHISM: Frosted glass effect (bg-white/10 backdrop-blur-md), soft shadows, organic shapes.
+      - MINIMALIST: Radical simplicity, extreme white space, serif/sans-serif pairing.
+      - DARK_MODE: Deep slates, subtle gradients, focus on readability.
+      - RETRO_80S: Bright colors, geometric patterns, Memphis design vibes.
+      - HIGH_CONTRAST: Maximum readability, bold colors, clear boundaries.
+
+      Return ONLY a JSON object:
+      {
+        "analysis": {
+          "intent": "Brief description of why the user is here",
+          "category": "NEWS" | "ECOMMERCE" | "FORUM" | "DOCS" | "LEGACY",
+          "summary": "1-sentence executive summary",
+          "structure": [{"role": "header", "selector": "nav", "actionable": true}],
+          "threats": ["List specific trackers/ads neutralized"],
+          "detectedAds": number,
+          "privacyScore": number (0-100),
+          "accessibilityScore": number (0-100),
+          "performanceGain": number (0-100),
+          "sizeReduction": number (0-100)
+        },
+        "modernizedHtml": "Complete HTML string for a div container. Use Tailwind only."
+      }
+    `;
+  }
+
+  /**
+   * Performs analysis and content generation in a single pass to minimize latency.
+   * Now includes caching, enhanced metrics, and privacy settings.
+   */
+  async modernize(scenario: WebPageScenario, theme: string, privacy?: PrivacySettings): Promise<ModernizationResult> {
     // Check cache first
-    const cached = this.cache.get(scenario.url, { theme });
+    const cacheKey = { theme, privacy: privacy || {} };
+    const cached = this.cache.get(scenario.url, cacheKey);
     if (cached) {
       console.log('Cache hit for:', scenario.url, theme);
       return cached;
     }
 
-    const prompt = this.generateModernizationPrompt(scenario, theme);
+    const prompt = this.generateModernizationPrompt(scenario, theme, privacy);
 
     const result = await this.withRetry(async () => {
       const text = await this.callGeminiAPI(prompt);
@@ -92,6 +148,8 @@ export class GeminiService extends AIService {
       const result: ModernizationResult = {
         analysis: {
           ...data.analysis,
+          detectedAds: data.analysis.detectedAds || 0,
+          privacyScore: data.analysis.privacyScore || 50,
           accessibilityScore: data.analysis.accessibilityScore || 75,
           performanceGain: data.analysis.performanceGain || 50,
           sizeReduction: data.analysis.sizeReduction || 30
@@ -104,7 +162,7 @@ export class GeminiService extends AIService {
     });
 
     // Cache the result
-    this.cache.set(scenario.url, result, { theme });
+    this.cache.set(scenario.url, cacheKey, result);
 
     return result;
   }
@@ -121,30 +179,25 @@ export class GeminiService extends AIService {
         const text = await this.callGeminiAPI(prompt);
         const data = JSON.parse(text);
         
-        // Map string to enum
-        let type = WebPageType.LEGACY;
-        if (data.type === 'NEWS') type = WebPageType.NEWS;
-        else if (data.type === 'ECOMMERCE') type = WebPageType.ECOMMERCE;
-        else if (data.type === 'FORUM') type = WebPageType.FORUM;
-        else if (data.type === 'DOCS') type = WebPageType.DOCS;
-
         return {
           url,
-          type,
-          title: data.title || "External Site",
-          originalContent: data.originalContent || "<div>Connection failed.</div>",
-          originalTech: data.tech || ["Simulated"]
+          type: (data.type as WebPageType) || WebPageType.LEGACY,
+          title: data.title || url,
+          originalContent: data.originalContent,
+          originalTech: data.tech || []
         };
       });
-
+      
       return result;
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to simulate fetch:', error);
+      // Return a fallback scenario
       return {
         url,
         type: WebPageType.LEGACY,
-        title: "Simulation Error",
-        originalContent: `<div style="padding: 20px; color: red;">Proxy Error: Unable to resolve ${url}. The service may be temporarily unavailable.</div>`,
-        originalTech: ["None"]
+        title: 'Error Loading Page',
+        originalContent: `<html><body><h1>Error</h1><p>Unable to load ${url}</p></body></html>`,
+        originalTech: ['Unknown']
       };
     }
   }
