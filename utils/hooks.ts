@@ -10,13 +10,25 @@ export function useKeyboardShortcut(
 ) {
   const handleKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      const modifiersMatch =
-        (!modifiers?.ctrl || event.ctrlKey) &&
-        (!modifiers?.shift || event.shiftKey) &&
-        (!modifiers?.alt || event.altKey) &&
-        (!modifiers?.meta || event.metaKey);
+      // Check if the key matches
+      if (event.key.toLowerCase() !== key.toLowerCase()) {
+        return;
+      }
 
-      if (event.key.toLowerCase() === key.toLowerCase() && modifiersMatch) {
+      // If no modifiers specified, match any modifier state
+      if (!modifiers) {
+        event.preventDefault();
+        callback();
+        return;
+      }
+
+      // Check exact modifier match
+      const ctrlMatch = modifiers.ctrl === undefined || event.ctrlKey === modifiers.ctrl;
+      const shiftMatch = modifiers.shift === undefined || event.shiftKey === modifiers.shift;
+      const altMatch = modifiers.alt === undefined || event.altKey === modifiers.alt;
+      const metaMatch = modifiers.meta === undefined || event.metaKey === modifiers.meta;
+
+      if (ctrlMatch && shiftMatch && altMatch && metaMatch) {
         event.preventDefault();
         callback();
       }
