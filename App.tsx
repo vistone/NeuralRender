@@ -69,13 +69,18 @@ const App: React.FC = () => {
     }
   }, [logs]);
 
-  // Keyboard shortcuts
-  useKeyboardShortcut('r', () => handleNavigate(addressBar), { ctrl: true });
-  useKeyboardShortcut('e', () => setIsEnhanced(!isEnhanced), { ctrl: true });
-  useKeyboardShortcut('h', () => setShowHistory(!showHistory), { ctrl: true });
-  useKeyboardShortcut('b', () => toggleBookmark(), { ctrl: true });
-  useKeyboardShortcut('s', () => exportModernizedHtml(), { ctrl: true });
-  useKeyboardShortcut('?', () => setShowShortcuts(!showShortcuts), { shift: true });
+  // Keyboard shortcuts - memoized to prevent unnecessary re-registrations
+  const handleReload = useCallback(() => handleNavigate(addressBar), [addressBar, handleNavigate]);
+  const toggleEnhanced = useCallback(() => setIsEnhanced(!isEnhanced), [isEnhanced]);
+  const toggleHistoryPanel = useCallback(() => setShowHistory(!showHistory), [showHistory]);
+  const toggleShortcutsModal = useCallback(() => setShowShortcuts(!showShortcuts), [showShortcuts]);
+
+  useKeyboardShortcut('r', handleReload, { ctrl: true });
+  useKeyboardShortcut('e', toggleEnhanced, { ctrl: true });
+  useKeyboardShortcut('h', toggleHistoryPanel, { ctrl: true });
+  useKeyboardShortcut('b', toggleBookmark, { ctrl: true });
+  useKeyboardShortcut('s', exportModernizedHtml, { ctrl: true });
+  useKeyboardShortcut('?', toggleShortcutsModal, { shift: true });
 
   const shortcuts = [
     { keys: 'Ctrl+R', description: 'Reload current page' },

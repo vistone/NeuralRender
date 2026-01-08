@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 
 /**
  * Custom hook for handling keyboard shortcuts
@@ -34,9 +34,9 @@ export function useKeyboardShortcut(
  * Custom hook for debouncing values
  */
 export function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedValue(value);
     }, delay);
@@ -53,7 +53,7 @@ export function useDebounce<T>(value: T, delay: number): T {
  * Custom hook for local storage with state
  */
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
-  const [storedValue, setStoredValue] = React.useState<T>(() => {
+  const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
@@ -74,5 +74,3 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
 
   return [storedValue, setValue];
 }
-
-import React from 'react';
