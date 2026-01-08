@@ -222,7 +222,7 @@ const App: React.FC = () => {
     addLog(`Exported: ${a.download}`);
   }, [modernizedHtml, activeScenario.title]);
 
-  // Keyboard shortcuts - memoized callbacks to prevent re-registrations
+  // Keyboard shortcuts - memoized callbacks to prevent event listener re-registration on every render
   const handleReload = useCallback(() => {
     handleNavigate(addressBar);
   }, [addressBar, handleNavigate]);

@@ -9,7 +9,7 @@ export function useKeyboardShortcut(
   callback: () => void,
   modifiers?: { ctrl?: boolean; shift?: boolean; alt?: boolean; meta?: boolean }
 ) {
-  // Use ref to always have the latest callback without causing re-registration
+  // Use ref to maintain callback freshness without re-registering event listeners on every render
   const callbackRef = useRef(callback);
   
   useEffect(() => {

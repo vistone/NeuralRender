@@ -14,6 +14,7 @@ export class GeminiService {
   private cache: Cache<ModernizationResult>;
   private maxRetries = 3;
   private retryDelay = 1000;
+  private textEncoder = new TextEncoder();
 
   constructor() {
     // Correct initialization with named parameter as per guidelines
@@ -106,9 +107,9 @@ export class GeminiService {
       const text = response.text || '{}';
       const data = JSON.parse(text);
       
-      // Calculate metrics
-      const originalSize = new TextEncoder().encode(scenario.originalContent).length;
-      const modernizedSize = new TextEncoder().encode(data.modernizedHtml || '').length;
+      // Calculate metrics using cached TextEncoder
+      const originalSize = this.textEncoder.encode(scenario.originalContent).length;
+      const modernizedSize = this.textEncoder.encode(data.modernizedHtml || '').length;
       
       const result: ModernizationResult = {
         analysis: {
