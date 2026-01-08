@@ -31,6 +31,16 @@ import { SCENARIOS } from './constants';
 import { WebPageScenario, AIAnalysis, RenderingTheme, PrivacySettings } from './types';
 import { GeminiService } from './services/geminiService';
 
+// 为 window.aistudio 添加类型声明
+declare global {
+  interface Window {
+    aistudio: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
+
 const App: React.FC = () => {
   const [addressBar, setAddressBar] = useState(SCENARIOS[0].url);
   const [activeScenario, setActiveScenario] = useState<WebPageScenario>(SCENARIOS[0]);
