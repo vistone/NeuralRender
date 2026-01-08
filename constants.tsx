@@ -109,5 +109,78 @@ export const SCENARIOS: WebPageScenario[] = [
         </div>
       </div>
     `
+  },
+  {
+    url: 'https://techblog-archive.io/articles/2003',
+    type: WebPageType.DOCS,
+    title: 'TechBlog Archive - Web Standards',
+    originalTech: ['Frames', 'Flash', 'ActiveX'],
+    originalContent: `
+      <frameset cols="200,*">
+        <frame src="nav.html" name="navigation">
+        <frame src="content.html" name="main">
+      </frameset>
+      <div style="font-family: Times New Roman; background: white; padding: 20px;">
+        <h1 style="color: #003366;">The Future of Web Development</h1>
+        <p style="text-align: justify; line-height: 1.4;">
+          In this article, we explore cutting-edge technologies like XML, XSLT, and the revolutionary new language called JavaScript.
+        </p>
+        <embed src="flash-animation.swf" width="400" height="300"></embed>
+        <p><blink>NEW!</blink> Download our ActiveX control for enhanced viewing experience!</p>
+        <table border="1" cellpadding="10" style="background: #ffffcc;">
+          <tr><td><b>Author:</b> John WebMaster</td></tr>
+          <tr><td><b>Published:</b> January 2003</td></tr>
+          <tr><td><b>Views:</b> <img src="counter.gif" alt="1234" /></td></tr>
+        </table>
+      </div>
+    `
+  },
+  {
+    url: 'https://classifieds-99.com/listings/electronics',
+    type: WebPageType.ECOMMERCE,
+    title: 'Online Classifieds - Electronics',
+    originalTech: ['CGI', 'Perl Scripts', 'Image Maps'],
+    originalContent: `
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#FFFFFF">
+        <tr>
+          <td colspan="3" bgcolor="#FF0000" height="50">
+            <font color="white" size="6"><b>CLASSIFIEDS ONLINE</b></font>
+          </td>
+        </tr>
+        <tr>
+          <td width="150" bgcolor="#EEEEEE" valign="top">
+            <font size="2">
+              <a href="#">Home</a><br>
+              <a href="#">Buy</a><br>
+              <a href="#">Sell</a><br>
+              <a href="#">Contact</a><br>
+              <img src="https://picsum.photos/120/200" usemap="#admap">
+            </font>
+          </td>
+          <td width="10"></td>
+          <td>
+            <h2>ELECTRONICS FOR SALE</h2>
+            <table border="1" width="100%">
+              <tr bgcolor="#CCCCCC">
+                <td><b>Item</b></td>
+                <td><b>Price</b></td>
+                <td><b>Seller</b></td>
+              </tr>
+              <tr>
+                <td>Pentium II Computer 400MHz</td>
+                <td><font color="green"><b>$450</b></font></td>
+                <td>Mike_1999</td>
+              </tr>
+              <tr>
+                <td>56k Modem - Brand New!</td>
+                <td><font color="green"><b>$89</b></font></td>
+                <td>TechDeals</td>
+              </tr>
+            </table>
+            <p><font size="1" color="gray">Sponsored: Win a FREE iPod! Click here!</font></p>
+          </td>
+        </tr>
+      </table>
+    `
   }
 ];

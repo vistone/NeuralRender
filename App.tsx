@@ -28,7 +28,7 @@ import {
   Key
 } from 'lucide-react';
 import { SCENARIOS } from './constants';
-import { WebPageScenario, AIAnalysis, RenderingTheme, WebPageType, PrivacySettings } from './types';
+import { WebPageScenario, AIAnalysis, RenderingTheme, PrivacySettings } from './types';
 import { GeminiService } from './services/geminiService';
 
 // 为 window.aistudio 添加类型声明
@@ -59,6 +59,7 @@ const App: React.FC = () => {
   });
   
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const initialLoadRef = useRef(false);
   const gemini = useMemo(() => new GeminiService(), []);
 
   const addLog = (msg: string) => {
@@ -117,8 +118,11 @@ const App: React.FC = () => {
   }, [gemini, theme, privacy]);
 
   useEffect(() => {
-    handleNavigate(SCENARIOS[0].url);
-  }, []);
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      handleNavigate(SCENARIOS[0].url);
+    }
+  }, [handleNavigate]);
 
   const viewportWidth = {
     desktop: 'w-full max-w-7xl',

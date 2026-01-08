@@ -23,6 +23,12 @@ export interface PrivacySettings {
   trackerDeception: boolean;
 }
 
+export enum AIProvider {
+  GEMINI = 'GEMINI',
+  DEEPSEEK = 'DEEPSEEK',
+  KIMI = 'KIMI'
+}
+
 export interface WebPageScenario {
   url: string;
   type: WebPageType;
@@ -41,6 +47,25 @@ export interface AIAnalysis {
   }[];
   threats: string[];
   summary: string;
+  // Privacy metrics (from main branch)
   detectedAds: number;
   privacyScore: number;
+  // Enhanced metrics (from our branch)
+  accessibilityScore?: number;
+  performanceGain?: number;
+  sizeReduction?: number;
+}
+
+export interface PerformanceMetrics {
+  originalSize: number;
+  modernizedSize: number;
+  loadTime: number;
+  threatsRemoved: number;
+}
+
+export interface KeyboardShortcut {
+  key: string;
+  description: string;
+  action: () => void;
+  modifiers?: string[];
 }
