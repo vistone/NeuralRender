@@ -52,6 +52,7 @@ const App: React.FC = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const hasInitialLoaded = useRef(false);
   const gemini = useMemo(() => new GeminiService(), []);
 
   const addLog = (msg: string) => {
@@ -255,9 +256,13 @@ const App: React.FC = () => {
     { keys: 'Shift+?', description: 'Show keyboard shortcuts' },
   ];
 
+  // Initial load - only run once on mount
   useEffect(() => {
-    handleNavigate(SCENARIOS[0].url);
-  }, []); // Initial load
+    if (!hasInitialLoaded.current) {
+      hasInitialLoaded.current = true;
+      handleNavigate(SCENARIOS[0].url);
+    }
+  }, [handleNavigate]);
 
   const handleThemeChange = async (newTheme: RenderingTheme) => {
     setTheme(newTheme);
